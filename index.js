@@ -4,9 +4,9 @@ const { ConfidentialClientApplication } = require('@azure/msal-node');
 // Azure AD and MS Graph configuration
 const config = {
     auth: {
-        clientId: 'your_client_id_here',
-        authority: 'https://login.microsoftonline.com/your_tenant_id_here',
-        clientSecret: 'your_client_secret_here',
+        clientId: '3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b',
+        authority: 'https://login.microsoftonline.com/7f65e0c2-5159-471c-9af9-e57501d53752',
+        clientSecret: 'MlC8Q~XZ_vLrsVb4E_afMEwZVKjQBk41PjIhObS0',
     }
 };
 
