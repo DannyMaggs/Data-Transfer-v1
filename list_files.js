@@ -88,7 +88,7 @@ async function main() {
 
     // List sites and find the 'salesandmarketing' site
     const sites = await listSites(accessToken);
-    const salesAndMarketingSite = sites.find(site => site.name === 'salesandmarketing');
+    const salesAndMarketingSite = sites.find(site => site.name.toLowerCase() === 'salesandmarketing');
     if (!salesAndMarketingSite) {
         console.error('Site "salesandmarketing" not found');
         return;
