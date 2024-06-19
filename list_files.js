@@ -56,19 +56,19 @@ async function listDrives(accessToken, siteId) {
 }
 
 async function listItems(accessToken, driveId) {
-    async function fetchItems(path) {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${path}:/children`, {
+    async function fetchItems(folderId) {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}/children`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Accept': 'application/json',
             }
         });
         const items = response.data.value;
-        
+
         for (const item of items) {
             if (item.folder) {
                 // Recursively fetch items in subfolders
-                await fetchItems(`${path}/${item.name}`);
+                await fetchItems(item.id);
             } else {
                 console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
             }
@@ -76,7 +76,16 @@ async function listItems(accessToken, driveId) {
     }
 
     try {
-        await fetchItems('');
+        // Start with the root folder ID
+        const rootResponse = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json',
+            }
+        });
+
+        const rootId = rootResponse.data.id;
+        await fetchItems(rootId);
     } catch (error) {
         console.error('Error listing items:', error.response.data);
     }
