@@ -70,7 +70,9 @@ async function listItems(accessToken, driveId, path = '') {
             if (item.folder) {
                 await listItems(accessToken, driveId, path ? `${path}/${item.name}` : item.name);
             } else {
-                console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
+                if (item.name.includes('june 2024') || item.name === 'Motohaus Monthly Reporting.xlsx') {
+                    console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
+                }
             }
         }
     } catch (error) {
