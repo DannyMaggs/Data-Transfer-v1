@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
 
+// Azure AD and MS Graph configuration
 const config = {
     auth: {
         clientId: '3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b',
@@ -9,8 +10,10 @@ const config = {
     }
 };
 
+// MSAL client application
 const cca = new ConfidentialClientApplication(config);
 
+// Authentication parameters
 const authParams = {
     scopes: ['https://graph.microsoft.com/.default'],
 };
@@ -74,10 +77,21 @@ async function main() {
         return;
     }
 
-    const siteId = 'salesandmarketing';
+    // List sites and find the 'salesandmarketing' site
+    const sites = await listSites(accessToken);
+    const salesAndMarketingSite = sites.find(site => site.name === 'salesandmarketing');
+    if (!salesAndMarketingSite) {
+        console.error('Site "salesandmarketing" not found');
+        return;
+    }
+    const siteId = salesAndMarketingSite.id;
 
     // List drives and find the drive you need
     const drives = await listDrives(accessToken, siteId);
+    if (!drives) {
+        console.error('Failed to list drives');
+        return;
+    }
     if (drives.length === 0) {
         console.error('No drives found in the site');
         return;
@@ -86,6 +100,10 @@ async function main() {
 
     // List items in the drive
     const items = await listItems(accessToken, driveId);
+    if (!items) {
+        console.error('Failed to list items');
+        return;
+    }
     items.forEach(item => {
         console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
     });
