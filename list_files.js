@@ -21,6 +21,7 @@ const authParams = {
 async function getToken() {
     try {
         const authResult = await cca.acquireTokenByClientCredential(authParams);
+        console.log('Access token acquired successfully');
         return authResult.accessToken;
     } catch (error) {
         console.error('Error acquiring token:', error);
@@ -35,9 +36,10 @@ async function listSites(accessToken) {
                 'Accept': 'application/json',
             }
         });
+        console.log('Sites listed successfully');
         return response.data.value;
     } catch (error) {
-        console.error('Error listing sites:', error.response.data);
+        console.error('Error listing sites:', error.response ? error.response.data : error.message);
     }
 }
 
@@ -49,15 +51,17 @@ async function listDrives(accessToken, siteId) {
                 'Accept': 'application/json',
             }
         });
+        console.log(`Drives listed successfully for site ID: ${siteId}`);
         return response.data.value;
     } catch (error) {
-        console.error('Error listing drives:', error.response.data);
+        console.error('Error listing drives:', error.response ? error.response.data : error.message);
     }
 }
 
 async function listItems(accessToken, driveId, path = '') {
     try {
         const endpoint = path ? `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${path}:/children` : `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`;
+        console.log(`Listing items from endpoint: ${endpoint}`);
         const response = await axios.get(endpoint, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -66,17 +70,23 @@ async function listItems(accessToken, driveId, path = '') {
         });
 
         const items = response.data.value;
+        console.log(`Number of items found: ${items.length}`);
         for (const item of items) {
+            console.log(`Checking item: ${item.name}`);
             if (item.folder) {
+                console.log(`Entering folder: ${item.name}`);
                 await listItems(accessToken, driveId, path ? `${path}/${item.name}` : item.name);
             } else {
-                if (item.name.includes('june 2024') || item.name === 'Motohaus Monthly Reporting.xlsx') {
-                    console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
+                const itemNameLower = item.name.toLowerCase();
+                if (itemNameLower.includes('june 2024.pptx') || itemNameLower === 'motohaus monthly reporting.xlsx') {
+                    console.log(`Item Found - Name: ${item.name}, ID: ${item.id}`);
+                } else {
+                    console.log(`Item does not match criteria - Name: ${item.name}`);
                 }
             }
         }
     } catch (error) {
-        console.error('Error listing items:', error.response.data);
+        console.error('Error listing items:', error.response ? error.response.data : error.message);
     }
 }
 
@@ -90,11 +100,16 @@ async function main() {
 
     // List sites and find the 'salesandmarketing' site
     const sites = await listSites(accessToken);
+    if (!sites) {
+        console.error('Failed to list sites');
+        return;
+    }
     const salesAndMarketingSite = sites.find(site => site.name.toLowerCase() === 'salesandmarketing');
     if (!salesAndMarketingSite) {
         console.error('Site "salesandmarketing" not found');
         return;
     }
+    console.log(`Sales and Marketing site found: ${salesAndMarketingSite.name}`);
     const siteId = salesAndMarketingSite.id;
 
     // List drives and find the drive you need
@@ -108,9 +123,11 @@ async function main() {
         return;
     }
     const driveId = drives[0].id; // Assuming the first drive is the one you need
+    console.log(`Drive found: ${driveId}`);
 
     // List all items in the root directory and its subdirectories
     await listItems(accessToken, driveId);
+    console.log('Finished listing all items.');
 }
 
 main();
