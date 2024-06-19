@@ -32,12 +32,13 @@ const { ConfidentialClientApplication } = require('@azure/msal-node');
         });
 
         const data = await response.json();
+        console.log("Fetched data:", data); // Add this line to log the fetched data
         return data;
     }
 
     async function listAllFiles(folderId, token) {
         let files = [];
-        let url = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
+        let url = `https://graph.microsoft.com/v1.0/sites/your-site-id/drive/items/${folderId}/children`;
 
         while (url) {
             const data = await fetchFiles(url, token);
