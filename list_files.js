@@ -72,10 +72,16 @@ async function listItems(accessToken, driveId, path = '', items = []) {
         const newItems = response.data.value;
         items = items.concat(newItems);
         if (response.data['@odata.nextLink']) {
-            await listItems(accessToken, driveId, path, items, response.data['@odata.nextLink']);
-        } else {
-            return items;
+            const nextLink = response.data['@odata.nextLink'];
+            const nextResponse = await axios.get(nextLink, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Accept': 'application/json',
+                }
+            });
+            items = items.concat(nextResponse.data.value);
         }
+        return items;
     } catch (error) {
         console.error('Error listing items:', error.response ? error.response.data : error.message);
     }
