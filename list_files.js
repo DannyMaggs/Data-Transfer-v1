@@ -54,7 +54,7 @@ const { ConfidentialClientApplication } = require('@azure/msal-node');
         const allFiles = await listAllFiles(rootId, token);
 
         const matchingFiles = allFiles.filter(file => 
-            file.name.toLowerCase().includes(searchQuery.toLowerCase())
+            file.name && file.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
         if (matchingFiles.length > 0) {
