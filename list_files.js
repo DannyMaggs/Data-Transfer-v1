@@ -58,10 +58,10 @@ async function listDrives(accessToken, siteId) {
     }
 }
 
-async function checkFileExistence(accessToken, driveId, path) {
+async function listItems(accessToken, driveId, path = '', items = []) {
     try {
-        const endpoint = `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${path}`;
-        console.log(`Checking file existence at endpoint: ${endpoint}`);
+        const endpoint = path ? `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${encodeURIComponent(path)}:/children` : `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`;
+        console.log(`Listing items from endpoint: ${endpoint}`);
         const response = await axios.get(endpoint, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -69,14 +69,41 @@ async function checkFileExistence(accessToken, driveId, path) {
             }
         });
 
-        const item = response.data;
-        if (item) {
-            console.log(`Item Found - Name: ${item.name}, ID: ${item.id}, Path: ${path}`);
+        const newItems = response.data.value;
+        items = items.concat(newItems);
+        if (response.data['@odata.nextLink']) {
+            await listItems(accessToken, driveId, path, items, response.data['@odata.nextLink']);
         } else {
-            console.log(`Item not found at path: ${path}`);
+            return items;
         }
     } catch (error) {
-        console.error('Error checking file existence:', error.response ? error.response.data : error.message);
+        console.error('Error listing items:', error.response ? error.response.data : error.message);
+    }
+}
+
+async function checkFileExistence(accessToken, driveId, filePath) {
+    const parts = filePath.split('/');
+    let currentPath = '';
+    for (let i = 0; i < parts.length; i++) {
+        currentPath += (i > 0 ? '/' : '') + encodeURIComponent(parts[i]);
+        const items = await listItems(accessToken, driveId, currentPath);
+        if (!items) {
+            console.error(`Failed to list items at path: ${currentPath}`);
+            return;
+        }
+        const item = items.find(item => item.name === parts[i]);
+        if (!item) {
+            console.error(`Item not found: ${parts[i]} at path: ${currentPath}`);
+            return;
+        }
+        if (i === parts.length - 1 && item.file) {
+            console.log(`File Found - Name: ${item.name}, ID: ${item.id}, Path: ${filePath}`);
+        } else if (item.folder) {
+            currentPath += '/' + item.name;
+        } else {
+            console.error(`Item is not a folder or file: ${item.name}`);
+            return;
+        }
     }
 }
 
