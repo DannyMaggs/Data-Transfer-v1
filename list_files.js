@@ -4,9 +4,9 @@ const { ConfidentialClientApplication } = require('@azure/msal-node');
 // Azure AD and MS Graph configuration
 const config = {
     auth: {
-        clientId: '3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b', // Replace with your actual Client ID
-        authority: 'https://login.microsoftonline.com/7f65e0c2-5159-471c-9af9-e57501d53752', // Replace with your actual Tenant ID
-        clientSecret: 'MlC8Q~XZ_vLrsVb4E_afMEwZVKjQBk41PjIhObS0', // Replace with your actual Client Secret
+        clientId: '3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b',
+        authority: 'https://login.microsoftonline.com/7f65e0c2-5159-471c-9af9-e57501d53752',
+        clientSecret: 'MlC8Q~XZ_vLrsVb4E_afMEwZVKjQBk41PjIhObS0',
     }
 };
 
@@ -55,9 +55,9 @@ async function listDrives(accessToken, siteId) {
     }
 }
 
-async function searchFile(accessToken, driveId, searchQuery) {
+async function listItems(accessToken, driveId) {
     try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root/search(q='${searchQuery}')`, {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Accept': 'application/json',
@@ -65,7 +65,7 @@ async function searchFile(accessToken, driveId, searchQuery) {
         });
         return response.data.value;
     } catch (error) {
-        console.error('Error searching for file:', error.response.data);
+        console.error('Error listing items:', error.response.data);
     }
 }
 
@@ -94,23 +94,29 @@ async function main() {
     }
     const driveId = drives[0].id; // Assuming the first drive is the one you need
 
-    // Search for specific files
-    const excelSearchQuery = 'Motohaus Monthly Reporting';
-    const pptSearchQuery = 'june 2024';
+    // List items in the drive
+    const items = await listItems(accessToken, driveId);
+    
+    // Print all items
+    console.log("Items in the drive:");
+    items.forEach(item => {
+        console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
+    });
 
-    const excelItems = await searchFile(accessToken, driveId, excelSearchQuery);
-    const pptItems = await searchFile(accessToken, driveId, pptSearchQuery);
+    // Replace these with actual filenames
+    const excelFilename = 'Motohaus Monthly Reporting';
+    const pptFilename = 'june 2024'; // Replace with your actual PPT filename
 
-    if (excelItems.length === 0 || pptItems.length === 0) {
+    const excelItem = items.find(item => item.name === excelFilename);
+    const pptItem = items.find(item => item.name === pptFilename);
+
+    if (!excelItem || !pptItem) {
         console.error('Required files not found');
         return;
     }
 
-    const excelItem = excelItems[0]; // Assuming the first result is the desired file
-    const pptItem = pptItems[0]; // Assuming the first result is the desired file
-
-    console.log(`Excel Item Name: ${excelItem.name}, Item ID: ${excelItem.id}`);
-    console.log(`PPT Item Name: ${pptItem.name}, Item ID: ${pptItem.id}`);
+    // Proceed with further steps if files are found
+    console.log("Required files found. Proceeding with further steps...");
 }
 
 main();
