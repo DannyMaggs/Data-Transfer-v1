@@ -91,7 +91,7 @@ async function downloadFile(accessToken, driveId, fileId) {
 async function processExcelData(excelBuffer) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(excelBuffer);
-    const worksheet = workbook.getWorksheet('ForMonthlyReports'); // Replace with your actual sheet name
+    const worksheet = workbook.getWorksheet('For_Monthly_Reports'); // Replace with your actual sheet name
 
     let tableData = [];
     worksheet.eachRow((row, rowNumber) => {
@@ -155,7 +155,7 @@ async function main() {
     });
 
     // Replace these with actual filenames
-    const excelFilename = '(All Brand) UK Press Samples_D65E0E21-A5D6-4FD9-A3DC-94A900B8A4442024-05-30T04-13-42.xlsx';
+    const excelFilename = 'Motohaus Monthly Reporting';
     const pptFilename = 'june 2024'; // Replace with your actual PPT filename
 
     const excelItem = items.find(item => item.name === excelFilename);
