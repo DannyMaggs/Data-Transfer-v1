@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
 const ExcelJS = require('exceljs');
-const { Presentation } = require('pptxgenjs'); // Use the appropriate PowerPoint library
+const pptxgen = require('pptxgenjs'); // Use the appropriate PowerPoint library
 const fs = require('fs');
 const path = require('path');
 
@@ -91,7 +91,7 @@ async function downloadFile(accessToken, driveId, fileId) {
 async function processExcelData(excelBuffer) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(excelBuffer);
-    const worksheet = workbook.getWorksheet('For Monthly Reports'); // Replace with your actual sheet name
+    const worksheet = workbook.getWorksheet('ForMonthlyReports'); // Replace with your actual sheet name
 
     let tableData = [];
     worksheet.eachRow((row, rowNumber) => {
@@ -105,22 +105,21 @@ async function processExcelData(excelBuffer) {
 }
 
 async function updatePowerPoint(pptBuffer, tableData) {
-    // Assuming you are using the pptxgenjs library or similar
-    const prs = new Presentation();
-    await prs.load(pptBuffer);
+    const prs = new pptxgen();
+    prs.load(pptBuffer);
 
     const slide = prs.addSlide();
     const rows = tableData.length;
     const cols = tableData[0].length;
 
-    const table = slide.addTable(rows, cols);
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            table.setCell(r, c, tableData[r][c]);
-        }
-    }
+    const table = slide.addTable(tableData, {
+        x: 1,
+        y: 1,
+        w: 8,
+        h: 5
+    });
 
-    const newPptBuffer = await prs.saveToBuffer();
+    const newPptBuffer = prs.saveToBuffer();
     return newPptBuffer;
 }
 
@@ -151,8 +150,16 @@ async function main() {
 
     // List items in the drive
     const items = await listItems(accessToken, driveId);
-    const excelItem = items.find(item => item.name.includes('motohaus_monthly_reports.xlsx')); // Replace with your actual Excel filename
-    const pptItem = items.find(item => item.name.includes('june_2024.pptx')); // Replace with your actual PPT filename
+    items.forEach(item => {
+        console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
+    });
+
+    // Replace these with actual filenames
+    const excelFilename = '(All Brand) UK Press Samples_D65E0E21-A5D6-4FD9-A3DC-94A900B8A4442024-05-30T04-13-42.xlsx';
+    const pptFilename = 'june 2024'; // Replace with your actual PPT filename
+
+    const excelItem = items.find(item => item.name === excelFilename);
+    const pptItem = items.find(item => item.name === pptFilename);
 
     if (!excelItem || !pptItem) {
         console.error('Required files not found');
