@@ -1,7 +1,6 @@
 const axios = require('axios');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
 
-// Azure AD and MS Graph configuration
 const config = {
     auth: {
         clientId: '3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b',
@@ -10,10 +9,8 @@ const config = {
     }
 };
 
-// MSAL client application
 const cca = new ConfidentialClientApplication(config);
 
-// Authentication parameters
 const authParams = {
     scopes: ['https://graph.microsoft.com/.default'],
 };
@@ -107,8 +104,8 @@ async function main() {
     const excelFilename = 'Motohaus Monthly Reporting';
     const pptFilename = 'june 2024'; // Replace with your actual PPT filename
 
-    const excelItem = items.find(item => item.name === excelFilename);
-    const pptItem = items.find(item => item.name === pptFilename);
+    const excelItem = items.find(item => item.name.toLowerCase().includes(excelFilename.toLowerCase()));
+    const pptItem = items.find(item => item.name.toLowerCase().includes(pptFilename.toLowerCase()));
 
     if (!excelItem || !pptItem) {
         console.error('Required files not found');
