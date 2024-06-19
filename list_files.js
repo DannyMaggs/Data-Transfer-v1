@@ -27,6 +27,34 @@ async function getToken() {
     }
 }
 
+async function listSites(accessToken) {
+    try {
+        const response = await axios.get('https://graph.microsoft.com/v1.0/sites?search=*', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json',
+            }
+        });
+        return response.data.value;
+    } catch (error) {
+        console.error('Error listing sites:', error.response.data);
+    }
+}
+
+async function listDrives(accessToken, siteId) {
+    try {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json',
+            }
+        });
+        return response.data.value;
+    } catch (error) {
+        console.error('Error listing drives:', error.response.data);
+    }
+}
+
 async function searchFile(accessToken, driveId, searchQuery) {
     try {
         const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root/search(q='${searchQuery}')`, {
