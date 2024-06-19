@@ -56,14 +56,27 @@ async function listDrives(accessToken, siteId) {
 }
 
 async function listItems(accessToken, driveId) {
-    try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`, {
+    async function fetchItems(path) {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${path}:/children`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Accept': 'application/json',
             }
         });
-        return response.data.value;
+        const items = response.data.value;
+        
+        for (const item of items) {
+            if (item.folder) {
+                // Recursively fetch items in subfolders
+                await fetchItems(`${path}/${item.name}`);
+            } else {
+                console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
+            }
+        }
+    }
+
+    try {
+        await fetchItems('');
     } catch (error) {
         console.error('Error listing items:', error.response.data);
     }
@@ -98,15 +111,8 @@ async function main() {
     }
     const driveId = drives[0].id; // Assuming the first drive is the one you need
 
-    // List items in the drive
-    const items = await listItems(accessToken, driveId);
-    if (!items) {
-        console.error('Failed to list items');
-        return;
-    }
-    items.forEach(item => {
-        console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
-    });
+    // List all items in the root directory and its subdirectories
+    await listItems(accessToken, driveId);
 }
 
 main();
