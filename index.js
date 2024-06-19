@@ -1,5 +1,9 @@
 const axios = require('axios');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
+const ExcelJS = require('exceljs');
+const { Presentation } = require('pptxgenjs'); // Use the appropriate PowerPoint library
+const fs = require('fs');
+const path = require('path');
 
 // Azure AD and MS Graph configuration
 const config = {
@@ -84,8 +88,49 @@ async function downloadFile(accessToken, driveId, fileId) {
     }
 }
 
+async function processExcelData(excelBuffer) {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(excelBuffer);
+    const worksheet = workbook.getWorksheet('For Monthly Reports'); // Replace with your actual sheet name
+
+    let tableData = [];
+    worksheet.eachRow((row, rowNumber) => {
+        let rowData = [];
+        row.eachCell((cell, colNumber) => {
+            rowData.push(cell.value);
+        });
+        tableData.push(rowData);
+    });
+    return tableData;
+}
+
+async function updatePowerPoint(pptBuffer, tableData) {
+    // Assuming you are using the pptxgenjs library or similar
+    const prs = new Presentation();
+    await prs.load(pptBuffer);
+
+    const slide = prs.addSlide();
+    const rows = tableData.length;
+    const cols = tableData[0].length;
+
+    const table = slide.addTable(rows, cols);
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            table.setCell(r, c, tableData[r][c]);
+        }
+    }
+
+    const newPptBuffer = await prs.saveToBuffer();
+    return newPptBuffer;
+}
+
 async function main() {
     const accessToken = await getToken();
+
+    if (!accessToken) {
+        console.error('Failed to acquire access token');
+        return;
+    }
 
     // List sites and find the 'salesandmarketing' site
     const sites = await listSites(accessToken);
@@ -106,19 +151,36 @@ async function main() {
 
     // List items in the drive
     const items = await listItems(accessToken, driveId);
-    items.forEach(item => {
-        console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
+    const excelItem = items.find(item => item.name.includes('for_monthly_reports.xlsx')); // Replace with your actual Excel filename
+    const pptItem = items.find(item => item.name.includes('june_2024.pptx')); // Replace with your actual PPT filename
+
+    if (!excelItem || !pptItem) {
+        console.error('Required files not found');
+        return;
+    }
+
+    // Download the Excel file
+    const excelBuffer = await downloadFile(accessToken, driveId, excelItem.id);
+    const tableData = await processExcelData(excelBuffer);
+
+    // Download the PowerPoint file
+    const pptBuffer = await downloadFile(accessToken, driveId, pptItem.id);
+    const newPptBuffer = await updatePowerPoint(pptBuffer, tableData);
+
+    // Upload the updated PowerPoint file back to SharePoint
+    const uploadUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${pptItem.id}/content`;
+    const uploadResponse = await axios.put(uploadUrl, newPptBuffer, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        }
     });
 
-    // Example: Download a specific Excel file
-    const excelFileId = 'your_excel_file_id_here'; // Replace with the actual file ID
-    const excelFileData = await downloadFile(accessToken, driveId, excelFileId);
-    console.log('Downloaded Excel file data:', excelFileData);
-
-    // Example: Download a specific PowerPoint file
-    const pptFileId = 'your_ppt_file_id_here'; // Replace with the actual file ID
-    const pptFileData = await downloadFile(accessToken, driveId, pptFileId);
-    console.log('Downloaded PowerPoint file data:', pptFileData);
+    if (uploadResponse.status === 200) {
+        console.log('PowerPoint presentation updated successfully.');
+    } else {
+        console.error('Failed to upload the PowerPoint file:', uploadResponse.status, uploadResponse.statusText);
+    }
 }
 
 main();

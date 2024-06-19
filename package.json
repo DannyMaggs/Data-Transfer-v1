@@ -11,6 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "@azure/msal-node": "^2.9.2",
-    "axios": "^1.7.2"
+    "axios": "^1.7.2",
+    "exceljs": "^4.4.0",
+    "pptxgenjs": "^3.12.0"
   }
 }
