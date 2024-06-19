@@ -1,119 +1,85 @@
-const axios = require('axios');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
+const fs = require('fs');
+const fetch = require('node-fetch');
 
+// Azure AD Config
 const config = {
     auth: {
-        clientId: '3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b',
-        authority: 'https://login.microsoftonline.com/7f65e0c2-5159-471c-9af9-e57501d53752',
-        clientSecret: 'MlC8Q~XZ_vLrsVb4E_afMEwZVKjQBk41PjIhObS0',
+        clientId: "3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b",
+        authority: "https://login.microsoftonline.com/7f65e0c2-5159-471c-9af9-e57501d53752",
+        clientSecret: "MlC8Q~XZ_vLrsVb4E_afMEwZVKjQBk41PjIhObS0"
     }
 };
 
 const cca = new ConfidentialClientApplication(config);
 
-const authParams = {
-    scopes: ['https://graph.microsoft.com/.default'],
-};
-
 async function getToken() {
-    try {
-        const authResult = await cca.acquireTokenByClientCredential(authParams);
-        return authResult.accessToken;
-    } catch (error) {
-        console.error('Error acquiring token:', error);
-    }
+    const clientCredentialRequest = {
+        scopes: ["https://graph.microsoft.com/.default"],
+        skipCache: false
+    };
+
+    const response = await cca.acquireTokenByClientCredential(clientCredentialRequest);
+    return response.accessToken;
 }
 
-async function listSites(accessToken) {
-    try {
-        const response = await axios.get('https://graph.microsoft.com/v1.0/sites?search=*', {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/json',
-            }
-        });
-        return response.data.value;
-    } catch (error) {
-        console.error('Error listing sites:', error.response.data);
-    }
+async function fetchFiles(url, token) {
+    const response = await fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+
+    const data = await response.json();
+    return data;
 }
 
-async function listDrives(accessToken, siteId) {
-    try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/json',
-            }
-        });
-        return response.data.value;
-    } catch (error) {
-        console.error('Error listing drives:', error.response.data);
+async function listAllFiles(folderId, token) {
+    let files = [];
+    let url = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
+
+    while (url) {
+        const data = await fetchFiles(url, token);
+        files = files.concat(data.value);
+
+        url = data["@odata.nextLink"] || null; // Get next page URL if available
     }
+
+    return files;
 }
 
-async function listItems(accessToken, driveId) {
-    try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/json',
-            }
+async function listFiles(token, searchQuery) {
+    const rootId = "root"; // Replace with the root folder ID if known
+    const allFiles = await listAllFiles(rootId, token);
+
+    const matchingFiles = allFiles.filter(file => 
+        file.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (matchingFiles.length > 0) {
+        console.log("Matching files:");
+        matchingFiles.forEach(file => {
+            console.log(`Item Name: ${file.name}, Item ID: ${file.id}`);
         });
-        return response.data.value;
-    } catch (error) {
-        console.error('Error listing items:', error.response.data);
+    } else {
+        console.log("No matching files found");
     }
 }
 
 async function main() {
-    const accessToken = await getToken();
+    try {
+        const token = await getToken();
+        const searchQuery = process.argv[2]; // Pass the search query as a command-line argument
 
-    if (!accessToken) {
-        console.error('Failed to acquire access token');
-        return;
+        if (!searchQuery) {
+            console.log("Please provide a search query");
+            return;
+        }
+
+        await listFiles(token, searchQuery);
+    } catch (error) {
+        console.error("Error:", error);
     }
-
-    // List sites and find the 'salesandmarketing' site
-    const sites = await listSites(accessToken);
-    const salesAndMarketingSite = sites.find(site => site.name === 'salesandmarketing');
-    if (!salesAndMarketingSite) {
-        console.error('Site "salesandmarketing" not found');
-        return;
-    }
-    const siteId = salesAndMarketingSite.id;
-
-    // List drives and find the drive you need
-    const drives = await listDrives(accessToken, siteId);
-    if (drives.length === 0) {
-        console.error('No drives found in the site');
-        return;
-    }
-    const driveId = drives[0].id; // Assuming the first drive is the one you need
-
-    // List items in the drive
-    const items = await listItems(accessToken, driveId);
-    
-    // Print all items
-    console.log("Items in the drive:");
-    items.forEach(item => {
-        console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
-    });
-
-    // Replace these with actual filenames
-    const excelFilename = 'Motohaus Monthly Reporting';
-    const pptFilename = 'june 2024'; // Replace with your actual PPT filename
-
-    const excelItem = items.find(item => item.name.toLowerCase().includes(excelFilename.toLowerCase()));
-    const pptItem = items.find(item => item.name.toLowerCase().includes(pptFilename.toLowerCase()));
-
-    if (!excelItem || !pptItem) {
-        console.error('Required files not found');
-        return;
-    }
-
-    // Proceed with further steps if files are found
-    console.log("Required files found. Proceeding with further steps...");
 }
 
 main();
