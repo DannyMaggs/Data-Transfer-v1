@@ -58,10 +58,10 @@ async function listDrives(accessToken, siteId) {
     }
 }
 
-async function listItems(accessToken, driveId, path = '') {
+async function checkFileExistence(accessToken, driveId, path) {
     try {
-        const endpoint = path ? `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${path}:/children` : `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`;
-        console.log(`Listing items from endpoint: ${endpoint}`);
+        const endpoint = `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${path}`;
+        console.log(`Checking file existence at endpoint: ${endpoint}`);
         const response = await axios.get(endpoint, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -69,24 +69,14 @@ async function listItems(accessToken, driveId, path = '') {
             }
         });
 
-        const items = response.data.value;
-        console.log(`Number of items found: ${items.length}`);
-        for (const item of items) {
-            console.log(`Checking item: ${item.name}`);
-            if (item.folder) {
-                console.log(`Entering folder: ${item.name}`);
-                await listItems(accessToken, driveId, path ? `${path}/${item.name}` : item.name);
-            } else {
-                const itemNameLower = item.name.toLowerCase();
-                if (itemNameLower.includes('june 2024.pptx') || itemNameLower === 'motohaus monthly reporting.xlsx') {
-                    console.log(`Item Found - Name: ${item.name}, ID: ${item.id}`);
-                } else {
-                    console.log(`Item does not match criteria - Name: ${item.name}`);
-                }
-            }
+        const item = response.data;
+        if (item) {
+            console.log(`Item Found - Name: ${item.name}, ID: ${item.id}, Path: ${path}`);
+        } else {
+            console.log(`Item not found at path: ${path}`);
         }
     } catch (error) {
-        console.error('Error listing items:', error.response ? error.response.data : error.message);
+        console.error('Error checking file existence:', error.response ? error.response.data : error.message);
     }
 }
 
@@ -125,9 +115,17 @@ async function main() {
     const driveId = drives[0].id; // Assuming the first drive is the one you need
     console.log(`Drive found: ${driveId}`);
 
-    // List all items in the root directory and its subdirectories
-    await listItems(accessToken, driveId);
-    console.log('Finished listing all items.');
+    // Check file existence directly by path
+    const filePaths = [
+        'Motohaus/Marketing/Motohaus%20Monthly%20Reporting.xlsx',
+        'Motohaus/Marketing/Monthly%20Marketing%20Meetings/June%202024.pptx'
+    ];
+
+    for (const filePath of filePaths) {
+        await checkFileExistence(accessToken, driveId, filePath);
+    }
+
+    console.log('Finished checking all file paths.');
 }
 
 main();
