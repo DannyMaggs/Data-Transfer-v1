@@ -4,9 +4,9 @@ const fetch = require('node-fetch');
 // Azure AD Config
 const config = {
     auth: {
-        clientId: "your-client-id",
-        authority: "https://login.microsoftonline.com/your-tenant-id",
-        clientSecret: "your-client-secret"
+        clientId: "3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b",
+        authority: "https://login.microsoftonline.com/7f65e0c2-5159-471c-9af9-e57501d53752",
+        clientSecret: "MlC8Q~XZ_vLrsVb4E_afMEwZVKjQBk41PjIhObS0"
     }
 };
 
