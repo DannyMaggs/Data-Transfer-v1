@@ -89,7 +89,7 @@ async function main() {
         return;
     }
 
-    const { sourceFileId, destinationFileId } = JSON.parse(fs.readFileSync('file_ids.json', 'utf8'));
+    const { sourceFileId, destinationFileId, sourceFileName, destinationFileName } = JSON.parse(fs.readFileSync('file_ids.json', 'utf8'));
 
     const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
     const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
@@ -97,7 +97,7 @@ async function main() {
     const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'Current Month (June)');
     const updatedPptBuffer = await updatePowerPoint(destinationFileContent, excelData);
 
-    await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, 'Updated_' + destinationFileId);
+    await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, `Updated_${destinationFileName}`);
 }
 
 main();
