@@ -1,5 +1,6 @@
 const axios = require('axios');
 const fs = require('fs');
+const path = require('path');
 const ExcelJS = require('exceljs');
 const PptxGenJS = require('pptxgenjs');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
@@ -64,12 +65,24 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.getWorksheet(sheetName);
+
+    if (!worksheet) {
+        throw new Error(`Worksheet "${sheetName}" not found`);
+    }
+
     const table = worksheet.getTable(tableName);
-    const data = [];
+
+    if (!table) {
+        throw new Error(`Table "${tableName}" not found`);
+    }
+
+    console.log(`Table "${tableName}" found in worksheet "${sheetName}"`);
+
     table.eachRow((row, rowNumber) => {
-        data.push(row.values);
+        console.log(`Row ${rowNumber} data:`, row.values);
     });
-    return data;
+
+    return table;
 }
 
 async function updatePowerPoint(pptBuffer, data) {
@@ -77,7 +90,7 @@ async function updatePowerPoint(pptBuffer, data) {
     await pptx.load(pptBuffer);
 
     const slide = pptx.getSlide(2); // Assuming we are updating slide 2
-    slide.addText(data.map(row => row.join(' ')), { x: 0.5, y: 0.5, fontSize: 12 });
+    // Add code here to update the slide with data
 
     const updatedBuffer = await pptx.write('arraybuffer');
     return updatedBuffer;
@@ -97,7 +110,7 @@ async function main() {
     const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
     const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
 
-    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'Current Month (June)');
+    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'currentmonthjune');
     const updatedPptBuffer = await updatePowerPoint(destinationFileContent, excelData);
 
     await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, 'Updated_' + destinationFileId);
