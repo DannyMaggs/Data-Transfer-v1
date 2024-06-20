@@ -1,6 +1,5 @@
 const axios = require('axios');
 const fs = require('fs');
-const path = require('path');
 const ExcelJS = require('exceljs');
 const PptxGenJS = require('pptxgenjs');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
@@ -105,15 +104,15 @@ async function main() {
         return;
     }
 
-    const { sourceFileName, destinationFileName } = JSON.parse(fs.readFileSync('file_ids.json', 'utf8'));
+    const { sourceFileId, destinationFileId } = JSON.parse(fs.readFileSync('file_ids.json', 'utf8'));
 
-    const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileName);
-    const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileName);
+    const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
+    const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
 
     const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'currentmonthjune');
     const updatedPptBuffer = await updatePowerPoint(destinationFileContent, excelData);
 
-    await uploadFile(accessToken, siteId, destinationFileName, updatedPptBuffer, 'Updated_' + destinationFileName);
+    await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, 'Updated_' + destinationFileId);
 }
 
 main();
