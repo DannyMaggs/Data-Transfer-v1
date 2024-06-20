@@ -1,6 +1,11 @@
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const ExcelJS = require('exceljs');
+const PptxGenJS = require('pptxgenjs');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
 
+// Azure AD and MS Graph configuration
 const config = {
     auth: {
         clientId: '3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b',
@@ -9,8 +14,10 @@ const config = {
     }
 };
 
+// MSAL client application
 const cca = new ConfidentialClientApplication(config);
 
+// Authentication parameters
 const authParams = {
     scopes: ['https://graph.microsoft.com/.default'],
 };
@@ -18,102 +25,79 @@ const authParams = {
 async function getToken() {
     try {
         const authResult = await cca.acquireTokenByClientCredential(authParams);
+        console.log('Access token acquired successfully');
         return authResult.accessToken;
     } catch (error) {
         console.error('Error acquiring token:', error);
     }
 }
 
-async function listSites(accessToken) {
+async function getFileContent(accessToken, siteId, itemId) {
     try {
-        const response = await axios.get('https://graph.microsoft.com/v1.0/sites?search=*', {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/sites/${siteId}/drive/items/${itemId}/content`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Accept': 'application/json',
-            }
+            },
+            responseType: 'arraybuffer'
         });
-        return response.data.value;
+        return response.data;
     } catch (error) {
-        console.error('Error listing sites:', error.response.data);
+        console.error(`Error retrieving file content: ${error.message}`);
     }
 }
 
-async function listDrives(accessToken, siteId) {
+async function uploadFile(accessToken, siteId, itemId, fileData, fileName) {
     try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`, {
+        const response = await axios.put(`https://graph.microsoft.com/v1.0/sites/${siteId}/drive/items/${itemId}/content`, fileData, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/json',
+                'Content-Type': 'application/octet-stream'
             }
         });
-        return response.data.value;
+        console.log(`File uploaded: ${fileName}`);
     } catch (error) {
-        console.error('Error listing drives:', error.response.data);
+        console.error(`Error uploading file: ${error.message}`);
     }
 }
 
-async function listItems(accessToken, driveId) {
-    try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/json',
-            }
-        });
-        return response.data.value;
-    } catch (error) {
-        console.error('Error listing items:', error.response.data);
-    }
+async function readExcelData(excelBuffer, sheetName, tableName) {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(excelBuffer);
+    const worksheet = workbook.getWorksheet(sheetName);
+    const table = worksheet.getTable(tableName);
+    return table;
+}
+
+async function updatePowerPoint(pptBuffer, data) {
+    const pptx = new PptxGenJS();
+    await pptx.load(pptBuffer);
+
+    const slide = pptx.getSlide(2); // Assuming we are updating slide 2
+    // Add code here to update the slide with data
+
+    const updatedBuffer = await pptx.write('arraybuffer');
+    return updatedBuffer;
 }
 
 async function main() {
     const accessToken = await getToken();
+    const siteId = 'YOUR_SITE_ID';
 
     if (!accessToken) {
         console.error('Failed to acquire access token');
         return;
     }
 
-    // List sites and find the 'salesandmarketing' site
-    const sites = await listSites(accessToken);
-    const salesAndMarketingSite = sites.find(site => site.name === 'salesandmarketing');
-    if (!salesAndMarketingSite) {
-        console.error('Site "salesandmarketing" not found');
-        return;
-    }
-    const siteId = salesAndMarketingSite.id;
+    const { sourceFileId, destinationFileId } = JSON.parse(fs.readFileSync('file_ids.json', 'utf8'));
 
-    // List drives and find the drive you need
-    const drives = await listDrives(accessToken, siteId);
-    if (drives.length === 0) {
-        console.error('No drives found in the site');
-        return;
-    }
-    const driveId = drives[0].id; // Assuming the first drive is the one you need
+    const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
+    const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
 
-    // List items in the drive
-    const items = await listItems(accessToken, driveId);
-    
-    // Print all items
-    console.log("Items in the drive:");
-    items.forEach(item => {
-        console.log(`Item Name: ${item.name}, Item ID: ${item.id}`);
-    });
+    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'Current Month (June)');
+    const updatedPptBuffer = await updatePowerPoint(destinationFileContent, excelData);
 
-    // Replace these with actual filenames
-    const excelFilename = 'Motohaus Monthly Reporting';
-    const pptFilename = 'june 2024'; // Replace with your actual PPT filename
-
-    const excelItem = items.find(item => item.name.includes(excelFilename));
-    const pptItem = items.find(item => item.name.includes(pptFilename));
-
-    if (!excelItem || !pptItem) {
-        console.error('Required files not found');
-        return;
-    }
-
-    // Proceed with further steps if files are found
-    console.log("Required files found. Proceeding with further steps...");
+    await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, 'Updated_' + destinationFileId);
 }
 
 main();
