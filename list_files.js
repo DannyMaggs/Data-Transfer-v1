@@ -28,9 +28,9 @@ async function getToken() {
     }
 }
 
-async function searchFiles(accessToken, searchQuery) {
+async function searchFiles(accessToken, siteId, searchQuery) {
     try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/sites/YOUR_SITE_ID/drives/YOUR_DRIVE_ID/root/search(q='${searchQuery}')`, {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root/search(q='${searchQuery}')`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Accept': 'application/json',
@@ -42,6 +42,20 @@ async function searchFiles(accessToken, searchQuery) {
     }
 }
 
+async function listSites(accessToken) {
+    try {
+        const response = await axios.get('https://graph.microsoft.com/v1.0/sites?search=salesandmarketing', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json',
+            }
+        });
+        return response.data.value;
+    } catch (error) {
+        console.error('Error listing sites:', error.response ? error.response.data : error.message);
+    }
+}
+
 async function main() {
     const accessToken = await getToken();
 
@@ -50,17 +64,26 @@ async function main() {
         return;
     }
 
+    // Get the site ID for "salesandmarketing"
+    const sites = await listSites(accessToken);
+    const salesAndMarketingSite = sites.find(site => site.name.toLowerCase() === 'salesandmarketing');
+    if (!salesAndMarketingSite) {
+        console.error('Site "salesandmarketing" not found');
+        return;
+    }
+    const siteId = salesAndMarketingSite.id;
+
     const sourceFileName = 'Motohaus Monthly Reporting.xlsx';
     const destinationFileName = 'June 2024.pptx';
 
-    const sourceFiles = await searchFiles(accessToken, sourceFileName);
-    const destinationFiles = await searchFiles(accessToken, destinationFileName);
+    const sourceFiles = await searchFiles(accessToken, siteId, sourceFileName);
+    const destinationFiles = await searchFiles(accessToken, siteId, destinationFileName);
 
-    if (sourceFiles.length === 0) {
+    if (!sourceFiles || sourceFiles.length === 0) {
         console.error(`Source file "${sourceFileName}" not found`);
         return;
     }
-    if (destinationFiles.length === 0) {
+    if (!destinationFiles || destinationFiles.length === 0) {
         console.error(`Destination file "${destinationFileName}" not found`);
         return;
     }
