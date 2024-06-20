@@ -1,5 +1,7 @@
 const axios = require('axios');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
+const ExcelJS = require('exceljs');
+const PptxGenJS = require('pptxgenjs');
 
 // Azure AD and MS Graph configuration
 const config = {
@@ -58,107 +60,133 @@ async function listDrives(accessToken, siteId) {
     }
 }
 
-async function listItems(accessToken, driveId, path = '', items = []) {
+async function searchFileRecursive(accessToken, driveId, path, targetFileName) {
     try {
-        const endpoint = path ? `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${encodeURIComponent(path)}:/children` : `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`;
-        console.log(`Listing items from endpoint: ${endpoint}`);
-        const response = await axios.get(endpoint, {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${path}:/children`, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Accept': 'application/json',
             }
         });
 
-        const newItems = response.data.value;
-        items = items.concat(newItems);
-        if (response.data['@odata.nextLink']) {
-            const nextLink = response.data['@odata.nextLink'];
-            const nextResponse = await axios.get(nextLink, {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Accept': 'application/json',
+        for (const item of response.data.value) {
+            if (item.folder) {
+                const found = await searchFileRecursive(accessToken, driveId, `${path}/${item.name}`, targetFileName);
+                if (found) return found;
+            } else {
+                if (item.name.toLowerCase() === targetFileName.toLowerCase()) {
+                    console.log(`File found: ${item.name}`);
+                    return item.id;
                 }
-            });
-            items = items.concat(nextResponse.data.value);
+            }
         }
-        return items;
     } catch (error) {
-        console.error('Error listing items:', error.response ? error.response.data : error.message);
+        console.error('Error searching for files:', error.response ? error.response.data : error.message);
+    }
+    return null;
+}
+
+async function downloadFile(accessToken, driveId, fileId) {
+    try {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/drives/${driveId}/items/${fileId}/content`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json',
+            },
+            responseType: 'arraybuffer'
+        });
+        console.log(`File downloaded successfully: ${fileId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error downloading file:', error.response ? error.response.data : error.message);
     }
 }
 
-async function checkFileExistence(accessToken, driveId, filePath) {
-    const parts = filePath.split('/');
-    let currentPath = '';
-    for (let i = 0; i < parts.length; i++) {
-        currentPath += (i > 0 ? '/' : '') + encodeURIComponent(parts[i]);
-        const items = await listItems(accessToken, driveId, currentPath);
-        if (!items) {
-            console.error(`Failed to list items at path: ${currentPath}`);
-            return;
-        }
-        const item = items.find(item => item.name === parts[i]);
-        if (!item) {
-            console.error(`Item not found: ${parts[i]} at path: ${currentPath}`);
-            return;
-        }
-        if (i === parts.length - 1 && item.file) {
-            console.log(`File Found - Name: ${item.name}, ID: ${item.id}, Path: ${filePath}`);
-        } else if (item.folder) {
-            currentPath += '/' + item.name;
-        } else {
-            console.error(`Item is not a folder or file: ${item.name}`);
-            return;
-        }
+async function extractDataFromExcel(buffer) {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet(1);
+    const data = [];
+
+    worksheet.eachRow((row, rowNumber) => {
+        data.push(row.values);
+    });
+
+    return data;
+}
+
+async function updatePowerPoint(buffer, data) {
+    const pptx = new PptxGenJS();
+    const slide = pptx.addSlide();
+
+    data.forEach((row, index) => {
+        slide.addText(row.join(' '), { x: 0.5, y: 0.5 + index * 0.5, fontSize: 12 });
+    });
+
+    const pptBuffer = await pptx.write('arraybuffer');
+    return pptBuffer;
+}
+
+async function uploadFile(accessToken, driveId, parentId, fileName, fileBuffer) {
+    try {
+        const response = await axios.put(`https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}:/${fileName}:/content`, fileBuffer, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            }
+        });
+        console.log(`File uploaded successfully: ${fileName}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error uploading file:', error.response ? error.response.data : error.message);
     }
 }
 
 async function main() {
     const accessToken = await getToken();
-
     if (!accessToken) {
         console.error('Failed to acquire access token');
         return;
     }
 
-    // List sites and find the 'salesandmarketing' site
     const sites = await listSites(accessToken);
-    if (!sites) {
-        console.error('Failed to list sites');
-        return;
-    }
     const salesAndMarketingSite = sites.find(site => site.name.toLowerCase() === 'salesandmarketing');
     if (!salesAndMarketingSite) {
         console.error('Site "salesandmarketing" not found');
         return;
     }
-    console.log(`Sales and Marketing site found: ${salesAndMarketingSite.name}`);
     const siteId = salesAndMarketingSite.id;
 
-    // List drives and find the drive you need
     const drives = await listDrives(accessToken, siteId);
     if (!drives) {
         console.error('Failed to list drives');
         return;
     }
-    if (drives.length === 0) {
-        console.error('No drives found in the site');
+    const driveId = drives[0].id;
+
+    const sourceFileName = 'Motohaus Monthly Reporting.xlsx';
+    const targetFileName = 'June 2024.pptx';
+
+    const sourceFileId = await searchFileRecursive(accessToken, driveId, '', sourceFileName);
+    const targetFileId = await searchFileRecursive(accessToken, driveId, '', targetFileName);
+
+    if (!sourceFileId) {
+        console.error(`Source file "${sourceFileName}" not found`);
         return;
     }
-    const driveId = drives[0].id; // Assuming the first drive is the one you need
-    console.log(`Drive found: ${driveId}`);
-
-    // Check file existence directly by path
-    const filePaths = [
-        'Motohaus/Marketing/Motohaus%20Monthly%20Reporting.xlsx',
-        'Motohaus/Marketing/Monthly%20Marketing%20Meetings/June%202024.pptx'
-    ];
-
-    for (const filePath of filePaths) {
-        await checkFileExistence(accessToken, driveId, filePath);
+    if (!targetFileId) {
+        console.error(`Target file "${targetFileName}" not found`);
+        return;
     }
 
-    console.log('Finished checking all file paths.');
+    const sourceFileBuffer = await downloadFile(accessToken, driveId, sourceFileId);
+    const targetFileBuffer = await downloadFile(accessToken, driveId, targetFileId);
+
+    const data = await extractDataFromExcel(sourceFileBuffer);
+    const updatedPptBuffer = await updatePowerPoint(targetFileBuffer, data);
+
+    const parentId = targetFileId.split('!')[1];
+    await uploadFile(accessToken, driveId, parentId, targetFileName, updatedPptBuffer);
 }
 
 main();
