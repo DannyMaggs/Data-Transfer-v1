@@ -65,32 +65,32 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.getWorksheet(sheetName);
-
-    if (!worksheet) {
-        throw new Error(`Worksheet "${sheetName}" not found`);
-    }
-
     const table = worksheet.getTable(tableName);
+    const data = [];
 
-    if (!table) {
-        throw new Error(`Table "${tableName}" not found`);
+    if (table) {
+        table.eachRow((row, rowNumber) => {
+            data.push(row.values);
+        });
+    } else {
+        console.error(`Table "${tableName}" not found`);
     }
 
-    console.log(`Table "${tableName}" found in worksheet "${sheetName}"`);
-
-    table.eachRow((row, rowNumber) => {
-        console.log(`Row ${rowNumber} data:`, row.values);
-    });
-
-    return table;
+    return data;
 }
 
 async function updatePowerPoint(pptBuffer, data) {
     const pptx = new PptxGenJS();
     await pptx.load(pptBuffer);
 
-    const slide = pptx.getSlide(2); // Assuming we are updating slide 2
-    // Add code here to update the slide with data
+    const slide = pptx.getSlide(6); // Assuming we are updating slide 6
+    const table = slide.getTable(0); // Assuming it's the first table on the slide
+
+    if (table) {
+        table.rows = data;
+    } else {
+        console.error(`Table not found on slide 6`);
+    }
 
     const updatedBuffer = await pptx.write('arraybuffer');
     return updatedBuffer;
@@ -105,15 +105,15 @@ async function main() {
         return;
     }
 
-    const { sourceFileId, destinationFileId } = JSON.parse(fs.readFileSync('file_ids.json', 'utf8'));
+    const { sourceFileName, destinationFileName } = JSON.parse(fs.readFileSync('file_ids.json', 'utf8'));
 
-    const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
-    const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
+    const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileName);
+    const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileName);
 
     const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'currentmonthjune');
     const updatedPptBuffer = await updatePowerPoint(destinationFileContent, excelData);
 
-    await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, 'Updated_' + destinationFileId);
+    await uploadFile(accessToken, siteId, destinationFileName, updatedPptBuffer, 'Updated_' + destinationFileName);
 }
 
 main();
