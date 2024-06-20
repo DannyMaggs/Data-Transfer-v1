@@ -1,6 +1,5 @@
 const axios = require('axios');
 const fs = require('fs');
-const path = require('path');
 const ExcelJS = require('exceljs');
 const PptxGenJS = require('pptxgenjs');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
@@ -66,7 +65,11 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.getWorksheet(sheetName);
     const table = worksheet.getTable(tableName);
-    return table;
+    const data = [];
+    table.eachRow((row, rowNumber) => {
+        data.push(row.values);
+    });
+    return data;
 }
 
 async function updatePowerPoint(pptBuffer, data) {
@@ -74,7 +77,7 @@ async function updatePowerPoint(pptBuffer, data) {
     await pptx.load(pptBuffer);
 
     const slide = pptx.getSlide(2); // Assuming we are updating slide 2
-    // Add code here to update the slide with data
+    slide.addText(data.map(row => row.join(' ')), { x: 0.5, y: 0.5, fontSize: 12 });
 
     const updatedBuffer = await pptx.write('arraybuffer');
     return updatedBuffer;
@@ -82,14 +85,14 @@ async function updatePowerPoint(pptBuffer, data) {
 
 async function main() {
     const accessToken = await getToken();
-    const siteId = 'YOUR_SITE_ID';
+    const siteId = 'motohaus.sharepoint.com,2c54175f-ca53-4ca4-8eab-1530b7f64072,07a87623-8134-4e67-b860-0ff98346cfc2';
 
     if (!accessToken) {
         console.error('Failed to acquire access token');
         return;
     }
 
-    const { sourceFileId, destinationFileId, sourceFileName, destinationFileName } = JSON.parse(fs.readFileSync('file_ids.json', 'utf8'));
+    const { sourceFileId, destinationFileId } = JSON.parse(fs.readFileSync('file_ids.json', 'utf8'));
 
     const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
     const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
@@ -97,7 +100,7 @@ async function main() {
     const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'Current Month (June)');
     const updatedPptBuffer = await updatePowerPoint(destinationFileContent, excelData);
 
-    await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, `Updated_${destinationFileName}`);
+    await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, 'Updated_' + destinationFileId);
 }
 
 main();
