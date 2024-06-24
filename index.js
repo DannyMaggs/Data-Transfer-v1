@@ -1,7 +1,7 @@
-const axios = require('axios');
+const { exec } = require('child_process');
 const fs = require('fs');
+const axios = require('axios');
 const ExcelJS = require('exceljs');
-const officegen = require('officegen');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
 
 const config = {
@@ -79,28 +79,22 @@ async function readExcelData(excelBuffer, sheetName, startRow, endRow) {
     return data;
 }
 
-async function updatePowerPoint(pptBuffer, data) {
-    // Create a new presentation using officegen
-    const pptx = officegen('pptx');
-    pptx.load(pptBuffer); // Load the existing PowerPoint file
-
-    const slide = pptx.getSlide(5); // Assuming we are updating slide 6 (0-based index)
-    const table = slide.objects.find(obj => obj.type === 'table'); // Find the first table on the slide
-
-    if (table) {
-        table.setData(data); // Update the table data
-    } else {
-        console.error(`Table not found on slide 6`);
-    }
-
-    const updatedBuffer = await new Promise((resolve, reject) => {
-        const buffers = [];
-        pptx.on('data', (chunk) => buffers.push(chunk));
-        pptx.on('end', () => resolve(Buffer.concat(buffers)));
-        pptx.on('error', reject);
+function runPythonScript(sourceFileId, destinationFileId) {
+    return new Promise((resolve, reject) => {
+        const command = `python3 update_ppt.py ${sourceFileId} ${destinationFileId}`;
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error executing Python script: ${error.message}`);
+                return reject(error);
+            }
+            if (stderr) {
+                console.error(`Python script stderr: ${stderr}`);
+                return reject(stderr);
+            }
+            console.log(`Python script stdout: ${stdout}`);
+            resolve(stdout);
+        });
     });
-
-    return updatedBuffer;
 }
 
 async function main() {
@@ -123,8 +117,23 @@ async function main() {
         return;
     }
 
-    const updatedPptBuffer = await updatePowerPoint(destinationFileContent, excelData);
+    // Save the files to the local filesystem
+    fs.writeFileSync('source.xlsx', sourceFileContent);
+    fs.writeFileSync('destination.pptx', destinationFileContent);
 
+    // Run the Python script to update the PowerPoint
+    try {
+        await runPythonScript(sourceFileId, destinationFileId);
+        console.log('Python script ran successfully');
+    } catch (error) {
+        console.error('Error running Python script:', error);
+        return;
+    }
+
+    // Read the updated PowerPoint file from the local filesystem
+    const updatedPptBuffer = fs.readFileSync('destination.pptx');
+
+    // Upload the updated PowerPoint file back to SharePoint
     await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, 'Updated_' + destinationFileId);
 }
 
