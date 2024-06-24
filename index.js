@@ -72,7 +72,15 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
 
     console.log(`Worksheet "${sheetName}" found. Checking tables...`);
 
-    const table = worksheet.getTable(tableName);
+    const tables = worksheet.model.tables;
+    if (tables.length === 0) {
+        console.log("No tables found in worksheet");
+        return [];
+    } else {
+        tables.forEach(t => console.log(`Table found: ${t.name}`));
+    }
+
+    const table = tables.find(t => t.name === tableName);
 
     if (!table) {
         console.error(`Table "${tableName}" not found`);
@@ -82,7 +90,8 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
     console.log(`Table "${tableName}" found. Reading data...`);
 
     const data = [];
-    table.eachRow((row, rowNumber) => {
+    const rows = worksheet.getRows(table.ref);
+    rows.forEach(row => {
         data.push(row.values);
     });
 
