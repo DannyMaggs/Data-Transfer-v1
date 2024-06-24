@@ -4,7 +4,6 @@ const ExcelJS = require('exceljs');
 const officegen = require('officegen');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
 
-// Azure AD and MS Graph configuration
 const config = {
     auth: {
         clientId: '3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b',
@@ -13,10 +12,8 @@ const config = {
     }
 };
 
-// MSAL client application
 const cca = new ConfidentialClientApplication(config);
 
-// Authentication parameters
 const authParams = {
     scopes: ['https://graph.microsoft.com/.default'],
 };
@@ -85,12 +82,16 @@ async function readExcelData(excelBuffer, sheetName, startRow, endRow) {
 async function updatePowerPoint(pptBuffer, data) {
     // Create a new presentation using officegen
     const pptx = officegen('pptx');
+    pptx.load(pptBuffer); // Load the existing PowerPoint file
 
-    // Add a new slide (since modifying existing slides isn't supported directly by officegen)
-    const slide = pptx.makeNewSlide();
-    
-    // Assuming data is a 2D array with rows and columns
-    slide.addTable(data);
+    const slide = pptx.getSlide(5); // Assuming we are updating slide 6 (0-based index)
+    const table = slide.objects.find(obj => obj.type === 'table'); // Find the first table on the slide
+
+    if (table) {
+        table.setData(data); // Update the table data
+    } else {
+        console.error(`Table not found on slide 6`);
+    }
 
     const updatedBuffer = await new Promise((resolve, reject) => {
         const buffers = [];
@@ -116,7 +117,7 @@ async function main() {
     const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
     const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
 
-    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 13, 21); // Adjust these row numbers to match your table
+    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 13, 21);
     if (excelData.length === 0) {
         console.error('No data found in the Excel table');
         return;

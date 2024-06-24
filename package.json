@@ -12,9 +12,13 @@
   "dependencies": {
     "@azure/msal-node": "^2.9.2",
     "axios": "^1.7.2",
+    "babel-polyfill": "^6.26.0",
     "exceljs": "^4.4.0",
+    "is-electron": "^2.2.2",
     "node-fetch": "^3.3.2",
+    "node-pptx": "^1.0.0",
     "officegen": "^0.6.5",
+    "pptx": "^0.0.0",
     "pptxgenjs": "^3.12.0"
   }
 }
