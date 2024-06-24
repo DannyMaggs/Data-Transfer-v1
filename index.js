@@ -60,7 +60,7 @@ async function uploadFile(accessToken, siteId, itemId, fileData, fileName) {
     }
 }
 
-async function readExcelData(excelBuffer, sheetName, startRow, endRow) {
+async function readExcelData(excelBuffer, sheetName, tableName) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.getWorksheet(sheetName);
@@ -70,30 +70,33 @@ async function readExcelData(excelBuffer, sheetName, startRow, endRow) {
         return [];
     }
 
-    console.log(`Worksheet "${sheetName}" found. Reading data...`);
+    console.log(`Worksheet "${sheetName}" found. Checking tables...`);
+
+    const table = worksheet.getTable(tableName);
+
+    if (!table) {
+        console.error(`Table "${tableName}" not found`);
+        return [];
+    }
+
+    console.log(`Table "${tableName}" found. Reading data...`);
 
     const data = [];
-    worksheet.eachRow({ includeEmpty: false }, function (row, rowNumber) {
-        if (rowNumber >= startRow && rowNumber <= endRow) {
-            data.push(row.values);
-        }
+    table.eachRow((row, rowNumber) => {
+        data.push(row.values);
     });
+
+    console.log(`Data from table "${tableName}":`, data);
 
     return data;
 }
 
 async function updatePowerPoint(pptBuffer, data) {
     const pptx = new PptxGenJS();
-    const pres = pptx.load(pptBuffer);
 
-    const slide = pres.getSlide(6); // Assuming we are updating slide 6
-    const table = slide.getTable(0); // Assuming it's the first table on the slide
-
-    if (table) {
-        table.rows = data;
-    } else {
-        console.error(`Table not found on slide 6`);
-    }
+    // Create a new slide for demonstration
+    let slide = pptx.addSlide();
+    slide.addTable(data);
 
     const updatedBuffer = await pptx.write('arraybuffer');
     return updatedBuffer;
@@ -113,7 +116,7 @@ async function main() {
     const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
     const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
 
-    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 13, 21); // Adjust these row numbers to match your table
+    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'Table_02');
     if (excelData.length === 0) {
         console.error('No data found in the Excel table');
         return;
