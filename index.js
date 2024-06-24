@@ -116,7 +116,7 @@ async function main() {
     const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
     const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
 
-    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'currentmonthjune');
+    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'Table_02');
     if (excelData.length === 0) {
         console.error('No data found in the Excel table');
         return;
