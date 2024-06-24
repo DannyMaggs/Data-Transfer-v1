@@ -69,8 +69,9 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
         return [];
     }
 
-    const tables = worksheet.tables;
-    console.log(`Available tables in worksheet: ${Object.keys(tables).join(', ')}`);
+    console.log(`Worksheet "${sheetName}" found. Checking tables...`);
+    const tables = worksheet.tables || {};
+    console.log(`Tables found: ${Object.keys(tables).join(', ')}`);
 
     const table = tables[tableName];
     if (!table) {
@@ -78,6 +79,7 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
         return [];
     }
 
+    console.log(`Table "${tableName}" found. Reading data...`);
     const data = [];
     table.eachRow((row, rowNumber) => {
         data.push(row.values);
