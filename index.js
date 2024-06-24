@@ -1,7 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const ExcelJS = require('exceljs');
-const PptxGenJS = require('pptxgenjs');
+const officegen = require('officegen');
 const { ConfidentialClientApplication } = require('@azure/msal-node');
 
 // Azure AD and MS Graph configuration
@@ -83,19 +83,22 @@ async function readExcelData(excelBuffer, sheetName, startRow, endRow) {
 }
 
 async function updatePowerPoint(pptBuffer, data) {
-    const pptx = new PptxGenJS();
-    const pres = pptx.load(pptBuffer);
+    // Create a new presentation using officegen
+    const pptx = officegen('pptx');
 
-    const slide = pres.getSlide(6); // Assuming we are updating slide 6
-    const table = slide.getTable(0); // Assuming it's the first table on the slide
+    // Add a new slide (since modifying existing slides isn't supported directly by officegen)
+    const slide = pptx.makeNewSlide();
+    
+    // Assuming data is a 2D array with rows and columns
+    slide.addTable(data);
 
-    if (table) {
-        table.rows = data;
-    } else {
-        console.error(`Table not found on slide 6`);
-    }
+    const updatedBuffer = await new Promise((resolve, reject) => {
+        const buffers = [];
+        pptx.on('data', (chunk) => buffers.push(chunk));
+        pptx.on('end', () => resolve(Buffer.concat(buffers)));
+        pptx.on('error', reject);
+    });
 
-    const updatedBuffer = await pptx.write('arraybuffer');
     return updatedBuffer;
 }
 
