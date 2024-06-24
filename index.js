@@ -60,7 +60,7 @@ async function uploadFile(accessToken, siteId, itemId, fileData, fileName) {
     }
 }
 
-async function readExcelData(excelBuffer, sheetName, tableName) {
+async function readExcelData(excelBuffer, sheetName, startRow, endRow) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.getWorksheet(sheetName);
@@ -70,26 +70,14 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
         return [];
     }
 
-    console.log(`Worksheet "${sheetName}" found. Checking tables...`);
+    console.log(`Worksheet "${sheetName}" found. Reading data...`);
 
-    const tables = worksheet.model.tables;
-    if (tables) {
-        tables.forEach(t => console.log(t.name));
-    } else {
-        console.log("No tables found in worksheet");
-    }
-
-    const table = tables.find(t => t.name === tableName);
     const data = [];
-
-    if (table) {
-        const tableRange = worksheet.getRanges(table.ref)[0];
-        tableRange.eachRow((row, rowNumber) => {
+    worksheet.eachRow({ includeEmpty: false }, function (row, rowNumber) {
+        if (rowNumber >= startRow && rowNumber <= endRow) {
             data.push(row.values);
-        });
-    } else {
-        console.error(`Table "${tableName}" not found`);
-    }
+        }
+    });
 
     return data;
 }
@@ -125,7 +113,7 @@ async function main() {
     const sourceFileContent = await getFileContent(accessToken, siteId, sourceFileId);
     const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
 
-    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'Table_02');
+    const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 13, 21); // Adjust these row numbers to match your table
     if (excelData.length === 0) {
         console.error('No data found in the Excel table');
         return;
