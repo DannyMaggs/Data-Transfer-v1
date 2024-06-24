@@ -64,35 +64,35 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.getWorksheet(sheetName);
+    
     if (!worksheet) {
         console.error(`Worksheet "${sheetName}" not found`);
         return [];
     }
-
+    
     console.log(`Worksheet "${sheetName}" found. Checking tables...`);
-    const tables = worksheet.tables || {};
-    console.log(`Tables found: ${Object.keys(tables).join(', ')}`);
+    console.log('Tables found:');
+    worksheet._tables.forEach(t => console.log(t.name));
 
-    const table = tables[tableName];
-    if (!table) {
-        console.error(`Table "${tableName}" not found`);
-        return [];
-    }
-
-    console.log(`Table "${tableName}" found. Reading data...`);
+    const table = worksheet.getTable(tableName);
     const data = [];
-    table.eachRow((row, rowNumber) => {
-        data.push(row.values);
-    });
+
+    if (table) {
+        table.eachRow((row, rowNumber) => {
+            data.push(row.values);
+        });
+    } else {
+        console.error(`Table "${tableName}" not found`);
+    }
 
     return data;
 }
 
 async function updatePowerPoint(pptBuffer, data) {
     const pptx = new PptxGenJS();
-    await pptx.load(pptBuffer);
+    const pres = pptx.load(pptBuffer);
 
-    const slide = pptx.getSlide(6); // Assuming we are updating slide 6
+    const slide = pres.getSlide(6); // Assuming we are updating slide 6
     const table = slide.getTable(0); // Assuming it's the first table on the slide
 
     if (table) {
