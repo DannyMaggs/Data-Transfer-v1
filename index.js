@@ -64,6 +64,10 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.getWorksheet(sheetName);
+    if (!worksheet) {
+        console.error(`Sheet "${sheetName}" not found`);
+        return [];
+    }
     const table = worksheet.getTable(tableName);
     const data = [];
 
@@ -80,16 +84,9 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
 
 async function updatePowerPoint(pptBuffer, data) {
     const pptx = new PptxGenJS();
-    await pptx.load(pptBuffer);
+    const slide = pptx.addSlide();
 
-    const slide = pptx.getSlide(6); // Assuming we are updating slide 6
-    const table = slide.getTable(0); // Assuming it's the first table on the slide
-
-    if (table) {
-        table.rows = data;
-    } else {
-        console.error(`Table not found on slide 6`);
-    }
+    slide.addTable(data, { x: 1, y: 1, w: 8, h: 3 });
 
     const updatedBuffer = await pptx.write('arraybuffer');
     return updatedBuffer;
@@ -110,6 +107,10 @@ async function main() {
     const destinationFileContent = await getFileContent(accessToken, siteId, destinationFileId);
 
     const excelData = await readExcelData(sourceFileContent, 'For Monthly Reports', 'currentmonthjune');
+    if (excelData.length === 0) {
+        console.error('No data found in the Excel table');
+        return;
+    }
     const updatedPptBuffer = await updatePowerPoint(destinationFileContent, excelData);
 
     await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, 'Updated_' + destinationFileId);

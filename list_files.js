@@ -73,8 +73,8 @@ async function main() {
     }
     const siteId = salesAndMarketingSite.id;
 
-    const sourceFileName = 'Motohaus Monthly Reporting.xlsx';
-    const destinationFileName = 'June 2024.pptx';
+    const sourceFileName = 'Test Motohaus Monthly Reporting.xlsx';
+    const destinationFileName = 'Test June 2024.pptx';
 
     const sourceFiles = await searchFiles(accessToken, siteId, sourceFileName);
     const destinationFiles = await searchFiles(accessToken, siteId, destinationFileName);
