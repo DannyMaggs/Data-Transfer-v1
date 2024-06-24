@@ -65,28 +65,37 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.getWorksheet(sheetName);
     if (!worksheet) {
-        console.error(`Sheet "${sheetName}" not found`);
+        console.error(`Worksheet "${sheetName}" not found`);
         return [];
     }
-    const table = worksheet.getTable(tableName);
-    const data = [];
 
-    if (table) {
-        table.eachRow((row, rowNumber) => {
-            data.push(row.values);
-        });
-    } else {
+    const table = worksheet.getTable(tableName);
+    if (!table) {
         console.error(`Table "${tableName}" not found`);
+        console.log(`Available tables in worksheet: ${worksheet.tables.map(t => t.name).join(', ')}`);
+        return [];
     }
+
+    const data = [];
+    table.eachRow((row, rowNumber) => {
+        data.push(row.values);
+    });
 
     return data;
 }
 
 async function updatePowerPoint(pptBuffer, data) {
     const pptx = new PptxGenJS();
-    const slide = pptx.addSlide();
+    await pptx.load(pptBuffer);
 
-    slide.addTable(data, { x: 1, y: 1, w: 8, h: 3 });
+    const slide = pptx.getSlide(6); // Assuming we are updating slide 6
+    const table = slide.getTable(0); // Assuming it's the first table on the slide
+
+    if (table) {
+        table.rows = data;
+    } else {
+        console.error(`Table not found on slide 6`);
+    }
 
     const updatedBuffer = await pptx.write('arraybuffer');
     return updatedBuffer;
@@ -111,6 +120,7 @@ async function main() {
         console.error('No data found in the Excel table');
         return;
     }
+
     const updatedPptBuffer = await updatePowerPoint(destinationFileContent, excelData);
 
     await uploadFile(accessToken, siteId, destinationFileId, updatedPptBuffer, 'Updated_' + destinationFileId);
