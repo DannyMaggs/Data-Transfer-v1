@@ -64,25 +64,27 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(excelBuffer);
     const worksheet = workbook.getWorksheet(sheetName);
-    
+
     if (!worksheet) {
         console.error(`Worksheet "${sheetName}" not found`);
         return [];
     }
-    
+
     console.log(`Worksheet "${sheetName}" found. Checking tables...`);
-    
-    if (worksheet.tables) {
-        worksheet.tables.forEach(t => console.log(t.name));
+
+    const tables = worksheet.model.tables;
+    if (tables) {
+        tables.forEach(t => console.log(t.name));
     } else {
         console.log("No tables found in worksheet");
     }
 
-    const table = worksheet.getTable(tableName);
+    const table = tables.find(t => t.name === tableName);
     const data = [];
 
     if (table) {
-        table.eachRow((row, rowNumber) => {
+        const tableRange = worksheet.getRanges(table.ref)[0];
+        tableRange.eachRow((row, rowNumber) => {
             data.push(row.values);
         });
     } else {
