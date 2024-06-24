@@ -72,7 +72,8 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
     const table = worksheet.getTable(tableName);
     if (!table) {
         console.error(`Table "${tableName}" not found`);
-        console.log(`Available tables in worksheet: ${worksheet.tables.map(t => t.name).join(', ')}`);
+        console.log('Available tables in worksheet:');
+        worksheet._tables.forEach(t => console.log(t.name));
         return [];
     }
 
