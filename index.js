@@ -69,11 +69,12 @@ async function readExcelData(excelBuffer, sheetName, tableName) {
         return [];
     }
 
-    const table = worksheet.getTable(tableName);
+    const tables = worksheet.tables;
+    console.log(`Available tables in worksheet: ${Object.keys(tables).join(', ')}`);
+
+    const table = tables[tableName];
     if (!table) {
         console.error(`Table "${tableName}" not found`);
-        console.log('Available tables in worksheet:');
-        worksheet._tables.forEach(t => console.log(t.name));
         return [];
     }
 
