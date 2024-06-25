@@ -1,15 +1,23 @@
 import os
 import sys
 import requests
+from flask import Flask, request, jsonify
 from msal import ConfidentialClientApplication
 from openpyxl import load_workbook
 from pptx import Presentation
+import warnings
+from urllib3.exceptions import InsecureRequestWarning
+
+# Suppress only the single InsecureRequestWarning from urllib3 needed
+warnings.simplefilter('ignore', InsecureRequestWarning)
+
+app = Flask(__name__)
 
 config = {
-    "client_id": "3acd75e1-dbf0-4df0-88aa-2c7a4bd5ee8b",
-    "authority": "https://login.microsoftonline.com/7f65e0c2-5159-471c-9af9-e57501d53752",
-    "client_secret": "MlC8Q~XZ_vLrsVb4E_afMEwZVKjQBk41PjIhObS0",
-    "scopes": ["https://graph.microsoft.com/.default"]
+    "client_id": os.getenv("CLIENT_ID"),
+    "authority": os.getenv("AUTHORITY"),
+    "client_secret": os.getenv("CLIENT_SECRET"),
+    "scopes": [os.getenv("SCOPES")]
 }
 
 def get_token():
@@ -27,7 +35,6 @@ def download_file(access_token, site_id, item_id, file_path):
     headers = {
         "Authorization": f"Bearer {access_token}"
     }
-    print(f"Downloading file from URL: {url}")
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     with open(file_path, "wb") as file:
@@ -40,7 +47,6 @@ def upload_file(access_token, site_id, item_id, file_path):
         "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     }
     with open(file_path, "rb") as file:
-        print(f"Uploading file to URL: {url}")
         response = requests.put(url, headers=headers, data=file)
     response.raise_for_status()
 
@@ -53,6 +59,9 @@ def read_excel_data(file_path, sheet_name, start_row, end_row):
     return data
 
 def update_powerpoint(ppt_path, data):
+    # Trim data to fit within 10 rows and 9 columns
+    trimmed_data = [row[:9] for row in data[:10]]
+
     presentation = Presentation(ppt_path)
     slide = presentation.slides[5]  # Slide 6 (0-indexed)
 
@@ -65,51 +74,52 @@ def update_powerpoint(ppt_path, data):
     if not table:
         raise Exception("No table found on slide 6")
 
+    num_rows_needed = len(trimmed_data)
+    num_cols_needed = len(trimmed_data[0])
+
     # Clear existing table data
-    for row in table.rows[1:]:  # Assuming first row is header
+    for i, row in enumerate(table.rows):
+        if i == 0:
+            continue  # Skip header row
         for cell in row.cells:
             cell.text = ""
 
     # Fill in new data
-    for i, row_data in enumerate(data, start=1):
-        row = table.rows[i]
+    for i, row_data in enumerate(trimmed_data):
         for j, cell_data in enumerate(row_data):
-            row.cells[j].text = str(cell_data)
+            table.cell(i + 1, j).text = str(cell_data)
 
     presentation.save(ppt_path)
 
-def main():
-    if len(sys.argv) != 3:
-        print("Usage: python update_ppt.py <sourceFileId> <destinationFileId>")
-        sys.exit(1)
+@app.route('/update_ppt', methods=['POST'])
+def update_ppt():
+    try:
+        source_file_id = request.json['sourceFileId']
+        destination_file_id = request.json['destinationFileId']
 
-    source_file_id = sys.argv[1]
-    destination_file_id = sys.argv[2]
+        access_token = get_token()
+        site_id = "motohaus.sharepoint.com,2c54175f-ca53-4ca4-8eab-1530b7f64072,07a87623-8134-4e67-b860-0ff98346cfc2"
 
-    access_token = get_token()
-    site_id = "motohaus.sharepoint.com,2c54175f-ca53-4ca4-8eab-1530b7f64072,07a87623-8134-4e67-b860-0ff98346cfc2"
-    
-    excel_path = "source.xlsx"
-    ppt_path = "destination.pptx"
+        excel_path = "source.xlsx"
+        ppt_path = "destination.pptx"
 
-    # Debug print statements
-    print(f"Access Token: {access_token}")
-    print(f"Site ID: {site_id}")
-    print(f"Source File ID: {source_file_id}")
-    print(f"Destination File ID: {destination_file_id}")
+        # Download files from SharePoint
+        download_file(access_token, site_id, source_file_id, excel_path)
+        download_file(access_token, site_id, destination_file_id, ppt_path)
 
-    # Download files from SharePoint
-    download_file(access_token, site_id, source_file_id, excel_path)
-    download_file(access_token, site_id, destination_file_id, ppt_path)
+        # Read data from Excel
+        excel_data = read_excel_data(excel_path, "For Monthly Reports", 13, 21)
 
-    # Read data from Excel
-    excel_data = read_excel_data(excel_path, "For Monthly Reports", 13, 21)
+        # Update PowerPoint with Excel data
+        update_powerpoint(ppt_path, excel_data)
 
-    # Update PowerPoint with Excel data
-    update_powerpoint(ppt_path, excel_data)
+        # Upload updated PowerPoint back to SharePoint
+        upload_file(access_token, site_id, destination_file_id, ppt_path)
 
-    # Upload updated PowerPoint back to SharePoint
-    upload_file(access_token, site_id, destination_file_id, ppt_path)
+        return jsonify({"message": "PowerPoint updated successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    main()
+    app.run(host='0.0.0.0', port=5000)
