@@ -1,7 +1,7 @@
 FROM python:3.9
 
 # Install required packages
-RUN pip install --no-cache-dir Flask==2.0.3 Werkzeug==2.0.3 msal openpyxl python-pptx requests
+RUN pip install --no-cache-dir Flask==2.0.3 Werkzeug==2.0.3 msal openpyxl python-pptx requests python-dotenv
 
 # Copy application files
 COPY app.py /app/app.py
