@@ -1,17 +1,17 @@
-import os
-import sys
-import requests
-from flask import Flask, request, jsonify
-from msal import ConfidentialClientApplication
-from openpyxl import load_workbook
-from pptx import Presentation
 import warnings
 from urllib3.exceptions import InsecureRequestWarning
 
-# Suppress only the single InsecureRequestWarning from urllib3 needed
 warnings.simplefilter('ignore', InsecureRequestWarning)
 
-app = Flask(__name__)
+import os
+import sys
+import requests
+from msal import ConfidentialClientApplication
+from openpyxl import load_workbook
+from pptx import Presentation
+from dotenv import load_dotenv
+
+load_dotenv()
 
 config = {
     "client_id": os.getenv("CLIENT_ID"),
@@ -35,6 +35,7 @@ def download_file(access_token, site_id, item_id, file_path):
     headers = {
         "Authorization": f"Bearer {access_token}"
     }
+    print(f"Downloading file from URL: {url}")
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     with open(file_path, "wb") as file:
@@ -47,6 +48,7 @@ def upload_file(access_token, site_id, item_id, file_path):
         "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     }
     with open(file_path, "rb") as file:
+        print(f"Uploading file to URL: {url}")
         response = requests.put(url, headers=headers, data=file)
     response.raise_for_status()
 
@@ -91,35 +93,38 @@ def update_powerpoint(ppt_path, data):
 
     presentation.save(ppt_path)
 
-@app.route('/update_ppt', methods=['POST'])
-def update_ppt():
-    try:
-        source_file_id = request.json['sourceFileId']
-        destination_file_id = request.json['destinationFileId']
+def main():
+    if len(sys.argv) != 3:
+        print("Usage: python update_ppt.py <sourceFileId> <destinationFileId>")
+        sys.exit(1)
 
-        access_token = get_token()
-        site_id = "motohaus.sharepoint.com,2c54175f-ca53-4ca4-8eab-1530b7f64072,07a87623-8134-4e67-b860-0ff98346cfc2"
+    source_file_id = sys.argv[1]
+    destination_file_id = sys.argv[2]
 
-        excel_path = "source.xlsx"
-        ppt_path = "destination.pptx"
+    access_token = get_token()
+    site_id = os.getenv("SITE_ID")
+    
+    excel_path = "source.xlsx"
+    ppt_path = "destination.pptx"
 
-        # Download files from SharePoint
-        download_file(access_token, site_id, source_file_id, excel_path)
-        download_file(access_token, site_id, destination_file_id, ppt_path)
+    # Debug print statements
+    print(f"Access Token: {access_token}")
+    print(f"Site ID: {site_id}")
+    print(f"Source File ID: {source_file_id}")
+    print(f"Destination File ID: {destination_file_id}")
 
-        # Read data from Excel
-        excel_data = read_excel_data(excel_path, "For Monthly Reports", 13, 21)
+    # Download files from SharePoint
+    download_file(access_token, site_id, source_file_id, excel_path)
+    download_file(access_token, site_id, destination_file_id, ppt_path)
 
-        # Update PowerPoint with Excel data
-        update_powerpoint(ppt_path, excel_data)
+    # Read data from Excel
+    excel_data = read_excel_data(excel_path, "For Monthly Reports", 13, 21)
 
-        # Upload updated PowerPoint back to SharePoint
-        upload_file(access_token, site_id, destination_file_id, ppt_path)
+    # Update PowerPoint with Excel data
+    update_powerpoint(ppt_path, excel_data)
 
-        return jsonify({"message": "PowerPoint updated successfully"}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    # Upload updated PowerPoint back to SharePoint
+    upload_file(access_token, site_id, destination_file_id, ppt_path)
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    main()
