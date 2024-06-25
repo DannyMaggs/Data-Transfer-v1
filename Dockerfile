@@ -1,20 +1,17 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+FROM python:3.9
 
-# Set the working directory in the container
+# Install required packages
+RUN pip install --no-cache-dir Flask==2.0.3 Werkzeug==2.0.3 msal openpyxl python-pptx requests
+
+# Copy application files
+COPY app.py /app/app.py
+COPY update_ppt.py /app/update_ppt.py
+
+# Set the working directory
 WORKDIR /app
 
-# Copy the current directory contents into the container
-COPY . /app
-
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Make port 5000 available to the world outside this container
+# Expose the port the app runs on
 EXPOSE 5000
 
-# Define environment variable
-ENV NAME World
-
-# Run app.py when the container launches
-CMD ["python", "app.py"]
+# Run the application
+CMD ["flask", "run", "--host=0.0.0.0"]
