@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import PP_ALIGN  # Import PP_ALIGN
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -94,15 +94,11 @@ def update_powerpoint(ppt_path, data):
             cell.text_frame.paragraphs[0].font.size = Pt(12)
             cell.text_frame.paragraphs[0].font.bold = False
             cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER  # Center align text
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(255, 255, 255)  # White background
 
-    # Adjust table size and position
+    # Adjust table size and position if necessary
     table_shape = table._graphic_frame
-    table_shape.left = Inches(0.5)  # Adjust position as needed
-    table_shape.top = Inches(1.5)  # Adjust position as needed
     table_shape.width = Inches(9)  # Adjust width as needed
-    table_shape.height = Inches(5.5)  # Adjust height as needed
+    table_shape.height = Inches(5)  # Adjust height as needed
 
     presentation.save(ppt_path)
 
