@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN  # Import PP_ALIGN
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -62,8 +63,6 @@ def read_excel_data(file_path, sheet_name, start_row, end_row):
         data.append(row)
     return data
 
-from pptx.util import Inches, Pt
-
 def update_powerpoint(ppt_path, data):
     # Trim data to fit within 10 rows and 9 columns
     trimmed_data = [row[:9] for row in data[:10]]
@@ -87,28 +86,21 @@ def update_powerpoint(ppt_path, data):
         for cell in row.cells:
             cell.text = ""
 
-    # Fill in new data
+    # Fill in new data and adjust the formatting
     for i, row_data in enumerate(trimmed_data):
         for j, cell_data in enumerate(row_data):
             cell = table.cell(i + 1, j)
             cell.text = str(cell_data)
+            cell.text_frame.paragraphs[0].font.size = Pt(12)
+            cell.text_frame.paragraphs[0].font.bold = False
+            cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER  # Center align text
 
-    # Adjust table size
+    # Adjust table size and position if necessary
     table_shape = table._graphic_frame
     table_shape.width = Inches(9)  # Adjust width as needed
     table_shape.height = Inches(5)  # Adjust height as needed
 
-    # Set font size for all cells
-    for row in table.rows:
-        for cell in row.cells:
-            for paragraph in cell.text_frame.paragraphs:
-                for run in paragraph.runs:
-                    run.font.size = Pt(12)
-
     presentation.save(ppt_path)
-
-
-
 
 def main():
     if len(sys.argv) != 3:

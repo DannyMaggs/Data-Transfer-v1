@@ -22,4 +22,4 @@ def update_ppt():
         return jsonify({"message": "Failed to update PowerPoint", "output": result.stderr}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5006)
