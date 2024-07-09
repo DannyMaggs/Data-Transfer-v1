@@ -20,7 +20,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
+          python3 -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run Update Script
@@ -31,4 +31,4 @@ jobs:
           SCOPES: ${{ secrets.SCOPES }}
           SITE_ID: ${{ secrets.SITE_ID }}
         run: |
-          python update_ppt.py 3ACD0680-3BC0-4D66-A492-AAAA1669846D 51F9826C-7B53-4A60-A2F7-D05AC47E1618
+          python3 update_ppt.py 3ACD0680-3BC0-4D66-A492-AAAA1669846D 51F9826C-7B53-4A60-A2F7-D05AC47E1618
