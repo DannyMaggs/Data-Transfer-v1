@@ -43,6 +43,17 @@ def download_file(access_token, site_id, item_id, file_path):
         file.write(response.content)
     print(f"File downloaded to {file_path}")
 
+def upload_file(access_token, site_id, item_id, file_path):
+    url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/items/{item_id}/content"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    }
+    with open(file_path, "rb") as file:
+        response = requests.put(url, headers=headers, data=file)
+    response.raise_for_status()
+    print(f"File uploaded from {file_path} to item ID {item_id}")
+
 def read_excel_data(file_path, sheet_name, start_row, end_row):
     workbook = load_workbook(filename=file_path, data_only=True)
     sheet = workbook[sheet_name]
@@ -125,9 +136,6 @@ def update_powerpoint(ppt_path, data):
             cell.text_frame.paragraphs[0].font.name = 'Arial'
             cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
-    # Merge cells for the "Totals" row
-    table.cell(len(data), 0).merge(table.cell(len(data), 2))
-
     presentation.save(ppt_path)
     print(f"Updated PowerPoint saved at {ppt_path}")
 
@@ -157,6 +165,9 @@ def main():
 
     # Update PowerPoint with Excel data
     update_powerpoint(ppt_path, excel_data)
+
+    # Upload the updated PowerPoint back to SharePoint
+    upload_file(access_token, site_id, destination_file_id, ppt_path)
 
 if __name__ == "__main__":
     main()
