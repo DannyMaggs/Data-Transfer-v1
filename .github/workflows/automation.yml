@@ -2,7 +2,7 @@ name: Daily Update
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # This runs every day at 2 AM BST (adjust as needed)
+    - cron: '* * * * *'  # This runs every minute
   workflow_dispatch:
 
 jobs:
