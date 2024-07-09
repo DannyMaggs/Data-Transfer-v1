@@ -1,14 +1,14 @@
-name: Daily Update
+name: File Change Trigger Workflow
 
 on:
-  schedule:
-    - cron: '* * * * *'  # This runs every minute for testing
-  workflow_dispatch:
+  push:
+    paths:
+      - source.xlsx
 
 jobs:
   update_files:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
