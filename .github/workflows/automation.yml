@@ -2,7 +2,7 @@ name: Daily Update
 
 on:
   schedule:
-    - cron: '* * * * *'  # This runs every minute
+    - cron: '* * * * *'  # This runs every minute for testing
   workflow_dispatch:
 
 jobs:
