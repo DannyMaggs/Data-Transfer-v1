@@ -2,26 +2,27 @@ name: Daily Update
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # This means the workflow runs at 2 AM UTC daily
-  workflow_dispatch:  # Allows manual triggering of the workflow
+    - cron: "0 2 * * *"  # Runs at 2am UTC every day
+  workflow_dispatch:
 
 jobs:
-  update_ppt:
+  update_files:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.10'
-      
+          python-version: 3.10
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
-      - name: Run the update script
+
+      - name: Run update script
         run: |
-          python update_ppt.py ${{ secrets.SOURCE_FILE_ID }} ${{ secrets.DESTINATION_FILE_ID }}
+          python update_ppt.py 3ACD0680-3BC0-4D66-A492-AAAA1669846D 51F9826C-7B53-4A60-A2F7-D05AC47E1618
