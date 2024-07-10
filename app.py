@@ -7,6 +7,10 @@ load_dotenv()
 
 app = Flask(__name__)
 
+@app.route('/')
+def index():
+    return "Flask app is running!"
+
 @app.route('/update_ppt', methods=['POST'])
 def update_ppt():
     data = request.get_json()
