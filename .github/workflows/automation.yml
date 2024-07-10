@@ -1,6 +1,7 @@
 name: Daily Update
 
 on:
+  workflow_dispatch:  # Allows manual triggering of the workflow
   schedule:
     - cron: '0 2 * * *'  # Runs at 2 AM every day
 
