@@ -7,6 +7,10 @@ load_dotenv()
 
 app = Flask(__name__)
 
+@app.route('/')
+def index():
+    return "Flask app is running!"
+
 @app.route('/update_ppt', methods=['POST'])
 def update_ppt():
     data = request.get_json()
@@ -22,4 +26,4 @@ def update_ppt():
         return jsonify({"message": "Failed to update PowerPoint", "output": result.stderr}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5006)
+    app.run(host='0.0.0.0', port=8080)

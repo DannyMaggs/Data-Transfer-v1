@@ -88,6 +88,12 @@ def format_percentage(value):
         return str(value)
 
 def update_powerpoint(ppt_path, data):
+    # Check if the PowerPoint file exists
+    if not os.path.exists(ppt_path):
+        raise FileNotFoundError(f"The file {ppt_path} does not exist.")
+    else:
+        print(f"File {ppt_path} exists and is ready for processing.")
+
     presentation = Presentation(ppt_path)
     slide = presentation.slides[5]  # Slide 6 (0-indexed)
 
@@ -149,16 +155,24 @@ def main():
 
     access_token = get_token()
     site_id = os.getenv("SITE_ID")
-    
+
     excel_path = "source.xlsx"
     ppt_path = "destination.pptx"
 
     # Download files from SharePoint
     download_file(access_token, site_id, source_file_id, excel_path)
+    download_file(access_token, site_id, destination_file_id, ppt_path)
+
+    # Verify the downloaded file
+    if not os.path.exists(ppt_path):
+        print(f"Failed to download the PowerPoint file: {ppt_path}")
+        sys.exit(1)
+    else:
+        print(f"Successfully downloaded the PowerPoint file: {ppt_path}")
 
     # Read data from Excel
     excel_data = read_excel_data(excel_path, "For Monthly Reports", 13, 21)
-    
+
     # Check if data includes "Totals" row
     print("Excel Data with Totals Row Included:")
     print(excel_data)
